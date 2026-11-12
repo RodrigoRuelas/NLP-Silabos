@@ -61,19 +61,28 @@ Reimplementa el mismo algoritmo en JavaScript puro:
 2. Calcula el IDF y los vectores TF-IDF normalizados.
 3. Al buscar, vectoriza la consulta y ordena por similitud coseno.
 
-**Importante:** los PDFs están en un Drive privado y no se pueden leer desde una página estática. Por eso la página trae **textos de ejemplo** de 10 cursos y permite **cargar archivos `.txt`** propios (por ejemplo, los sílabos convertidos a texto).
+### Dataset real (carpeta de Drive)
+Una página web no puede leer PDFs de un Drive privado, así que el texto se extrae **una vez** en Colab y se guarda en `silabos.json`:
+
+1. Abrir el notebook y ejecutar las celdas hasta crear `df_silabos`.
+2. Añadir una celda nueva con el contenido de `exportar_dataset.py` y ejecutarla (descarga `silabos.json`).
+3. Colocar `silabos.json` junto a `index.html` y subirlo al repo.
+
+La página carga `silabos.json` automáticamente al abrirse y muestra el fragmento donde aparece la coincidencia. Si no lo encuentra, usa textos de ejemplo de 10 cursos. También se puede cargar un `.json` o archivos `.txt` desde el botón de la página.
 
 ### Cómo ejecutarla
-Abrir `index.html` en el navegador. No necesita instalación.
+Con servidor local (necesario para que cargue `silabos.json`): `python3 -m http.server` y abrir `http://localhost:8000`. En GitHub Pages funciona directamente.
 
 ## 5. Limitaciones y mejoras posibles
 
 - **TF-IDF no entiende significado:** "auto" y "carro" son palabras distintas para él. Se mejoraría con *embeddings* semánticos (por ejemplo `sentence-transformers`) o un modelo de lenguaje.
 - No hace **stemming ni lematización** ("programar", "programación" y "programando" cuentan como términos distintos).
 - Usa el sílabo completo como unidad. Dividirlo en **fragmentos** daría resultados más precisos y mejores extractos.
-- El extracto actual son los primeros 300 caracteres, no el fragmento donde está la coincidencia.
 - Los PDFs escaneados como imagen no se pueden leer con `pypdf` y necesitarían OCR.
 
 ## 6. Tecnologías
-
-Python, pypdf, pandas, scikit-learn (notebook) · HTML y JavaScript (web).
+- Python
+- pypdf
+- pandas
+- scikit-learn (notebook) 
+- HTML y JavaScript (web).
