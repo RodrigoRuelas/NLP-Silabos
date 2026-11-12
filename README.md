@@ -1,4 +1,4 @@
-# Buscador de Sílabos con NLP
+# Buscador de Sílabos con NLP 50%
 
 Proyecto de **Tópicos Avanzados en IA**. Es un motor de búsqueda que recibe una consulta en lenguaje natural (por ejemplo, *"programación orientada a objetos"* o *"examen final proyecto"*) y devuelve los sílabos más parecidos, ordenados por relevancia.
 
