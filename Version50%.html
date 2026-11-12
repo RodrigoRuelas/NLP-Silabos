@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Proyecto NLP - Buscador de Sílabos</title>
+<style>
+  body{font-family:system-ui,sans-serif;max-width:820px;margin:2rem auto;padding:0 1rem;color:#222;line-height:1.5}
+  h1{margin-bottom:.2rem} .sub{color:#666;margin-top:0}
+  input[type=text]{width:100%;padding:.6rem;font-size:1rem;box-sizing:border-box}
+  button{padding:.5rem 1rem;font-size:1rem;margin-top:.5rem;cursor:pointer}
+  .card{border:1px solid #ddd;border-radius:8px;padding:.8rem 1rem;margin:.8rem 0}
+  .score{float:right;font-weight:bold;color:#0a6}
+  .meta{color:#666;font-size:.85rem} pre{background:#f5f5f5;padding:1rem;overflow:auto;font-size:.85rem}
+  details{margin:1.5rem 0}
+</style>
+</head>
+<body>
+<h1>Buscador de Documentos (NLP)</h1>
+<p class="sub">Proyecto de Tópicos Avanzados en IA · Búsqueda por similitud coseno con TF-IDF</p>
+
+<p>Escribe una consulta y se muestran los sílabos más parecidos. Funciona 100% en tu navegador.
+Busca en el dataset real (<code>silabos.json</code>, generado desde la carpeta de Drive). Si no lo encuentra, usa <b>textos de ejemplo</b>.
+También puedes cargar tu propio <code>.json</code> o archivos <code>.txt</code>.</p>
+
+<input type="text" id="q" placeholder="Ej: programación orientada a objetos, evaluación, matrices...">
+<button id="go">Buscar</button>
+<label style="margin-left:1rem">Cargar .json / .txt: <input type="file" id="files" accept=".txt,.json" multiple></label>
+<div id="info" class="meta"></div>
+<div id="res"></div>
+
+<details>
+<summary>¿Cómo funciona?</summary>
+<ol>
+<li>Se lee el texto de cada documento (en el notebook original: PDFs de Drive con <code>pypdf</code>).</li>
+<li>Se quita stopwords en español y se calcula TF-IDF por documento.</li>
+<li>La consulta se vectoriza igual y se ordena por similitud coseno.</li>
+</ol>
+Equivale a <code>TfidfVectorizer</code> + <code>cosine_similarity</code> de scikit-learn.
+</details>
+
+<script>
+const STOP = new Set(`de la que el en y a los del se las por un para con no una su al lo como más pero sus le ya o este sí porque esta entre cuando muy sin sobre también me hasta hay donde quien desde todo nos durante todos uno les ni contra otros ese eso ante ellos e esto mí antes algunos qué unos yo otro otras otra él tanto esa estos mucho quienes nada muchos cual poco ella estar estas algunas algo nosotros mi mis tú te ti tu tus ellas nosotras vosotros vosotras`.split(/\s+/));
+
+let docs = [
+ {curso:"Comunicación I", texto:"Desarrollo de la expresión oral y escrita. Redacción de textos académicos, comprensión lectora, exposiciones. Evaluación: examen parcial, examen final, trabajos de redacción."},
+ {curso:"Metodología del Estudio", texto:"Técnicas de estudio, organización del tiempo, lectura crítica, mapas conceptuales y trabajo colaborativo. Evaluación continua y proyecto grupal."},
+ {curso:"Introducción a la Computación", texto:"Historia de la computación, hardware, software, sistemas operativos, redes e internet. Evaluación: examen parcial, examen final y laboratorios."},
+ {curso:"Introducción a la Programación", texto:"Algoritmos, diagramas de flujo, variables, estructuras de control, funciones y arreglos usando Python. Proyecto final de programación."},
+ {curso:"Lenguaje de Programación I", texto:"Programación orientada a objetos: clases, herencia, polimorfismo, encapsulamiento. Java y Python. Proyecto de aplicación con base de datos."},
+ {curso:"Álgebra y Geometría", texto:"Conjuntos, funciones, ecuaciones, trigonometría y geometría analítica. Examen parcial y examen final."},
+ {curso:"Álgebra Lineal", texto:"Matrices, determinantes, sistemas de ecuaciones lineales, espacios vectoriales, valores y vectores propios. Aplicaciones en inteligencia artificial."},
+ {curso:"Matemática Discreta", texto:"Lógica proposicional, teoría de conjuntos, relaciones, grafos, combinatoria y algoritmos. Evaluación con prácticas y examen final."},
+ {curso:"Realidad Nacional", texto:"Análisis de la realidad económica, social y política del Perú. Investigación, debate y proyecto de investigación grupal."},
+ {curso:"Expresión Artística", texto:"Apreciación del arte, creatividad, música, artes visuales y teatro. Proyecto artístico final."}
+];
+
+const tok = s => (s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").match(/[a-z0-9ñ]+/g)||[]).filter(w=>!STOP.has(w)&&w.length>1);
+let idf={}, vecs=[];
+
+function norm(v){let n=Math.sqrt(Object.values(v).reduce((a,b)=>a+b*b,0))||1;for(const k in v)v[k]/=n;return v}
+function vec(tokens){const tf={};tokens.forEach(t=>tf[t]=(tf[t]||0)+1);const v={};for(const t in tf)if(idf[t])v[t]=tf[t]*idf[t];return norm(v)}
+function build(){
+  const N=docs.length, df={};
+  const toks=docs.map(d=>tok(d.texto));
+  toks.forEach(ts=>new Set(ts).forEach(t=>df[t]=(df[t]||0)+1));
+  idf={};for(const t in df) idf[t]=Math.log((1+N)/(1+df[t]))+1;
+  vecs=toks.map(vec);
+  document.getElementById("info").textContent=`${N} documentos indexados · ${Object.keys(idf).length} términos`;
+}
+function search(q,k=3){
+  const qv=vec(tok(q));
+  return vecs.map((v,i)=>{let s=0;for(const t in qv)if(v[t])s+=qv[t]*v[t];return{i,s}})
+    .sort((a,b)=>b.s-a.s).slice(0,k);
+}
+function snippet(texto,q){
+  const t=texto.replace(/\s+/g," ");
+  const norm=x=>x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+  const low=norm(t);
+  for(const w of tok(q)){const i=low.indexOf(w);if(i>=0){const a=Math.max(0,i-120);return (a>0?"...":"")+t.slice(a,a+300)+"..."}}
+  return t.slice(0,300)+"...";
+}
+function render(){
+  const q=document.getElementById("q").value.trim(); if(!q)return;
+  const out=search(q).map(r=>`<div class="card"><span class="score">${(r.s*100).toFixed(2)}%</span>
+    <b>${docs[r.i].curso}</b><div class="meta">${snippet(docs[r.i].texto,q)}</div></div>`).join("");
+  document.getElementById("res").innerHTML=out||"Sin resultados";
+}
+document.getElementById("go").onclick=render;
+document.getElementById("q").addEventListener("keydown",e=>{if(e.key==="Enter")render()});
+document.getElementById("files").onchange=async e=>{
+  const nuevos=[];
+  for(const f of e.target.files){
+    if(/\.json$/i.test(f.name)) nuevos.push(...JSON.parse(await f.text()));
+    else nuevos.push({curso:f.name.replace(/\.txt$/i,""),texto:await f.text()});
+  }
+  if(nuevos.length){docs=nuevos;build();document.getElementById("res").innerHTML="";}
+};
+build();
+fetch("silabos.json").then(r=>r.ok?r.json():Promise.reject()).then(d=>{
+  if(Array.isArray(d)&&d.length){docs=d;build();document.getElementById("info").textContent+=" · dataset: silabos.json"}
+}).catch(()=>{document.getElementById("info").textContent+=" · (ejemplos: no se encontró silabos.json)"});
+</script>
+</body>
+</html>
